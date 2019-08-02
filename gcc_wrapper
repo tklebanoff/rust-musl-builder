@@ -1,0 +1,11 @@
+#!/bin/bash
+
+args=()
+
+for arg in "$@"; do
+    args+=("$arg")
+done
+
+echo "GCC_WRAPPER, RUNNING WITH ARGS: ${args[@]}"
+
+/usr/local/musl/bin/x86_64-linux-musl-gcc-real "${args[@]}"

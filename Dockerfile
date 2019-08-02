@@ -25,11 +25,13 @@ RUN apt-get update && \
         curl \
         file \
         git \
-        musl-dev \
-        musl-tools \
+        #musl-dev \
+        #musl-tools \
         libpq-dev \
         libsqlite-dev \
         libssl-dev \
+        wget \
+        m4 \
         linux-libc-dev \
         pkgconf \
         sudo \
@@ -44,8 +46,23 @@ RUN apt-get update && \
     mv mdbook /usr/local/bin/ && \
     rm -f mdbook-v$MDBOOK_VERSION-x86_64-unknown-linux-musl.tar.gz
 
+
+ENV \
+    MUSL_INCLUDE=/usr/local/musl/include \
+    MUSL_BIN=/usr/local/musl/bin         \
+    MUSL_LIB=/usr/local/musl/lib         \
+    MUSL_PREFIX=/usr/local/musl          \
+    MUSL_TARGET=x86_64-linux-musl        \
+    MUSL_GCC=/usr/local/musl/bin/x86_64-linux-musl-gcc
+
+WORKDIR /tmp
+RUN git clone https://github.com/richfelker/musl-cross-make 
+WORKDIR /tmp/musl-cross-make
+RUN env TARGET=${MUSL_TARGET} make all
+RUN make TARGET=${MUSL_TARGET} OUTPUT=${MUSL_PREFIX} install
+
 # Static linking for C++ code
-RUN sudo ln -s "/usr/bin/g++" "/usr/bin/musl-g++"
+#RUN sudo ln -s "/usr/bin/g++" "/usr/bin/musl-g++"
 
 # Allow sudo without a password.
 ADD sudoers /etc/sudoers.d/nopasswd
@@ -57,7 +74,8 @@ RUN mkdir -p /home/rust/libs /home/rust/src
 
 # Set up our path with all our binary directories, including those for the
 # musl-gcc toolchain and for our Rust toolchain.
-ENV PATH=/home/rust/.cargo/bin:/usr/local/musl/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+#ENV PATH=/home/rust/.cargo/bin:/usr/local/musl/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=/home/rust/.cargo/bin:${MUSL_BIN}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Install our Rust toolchain and the `musl` target.  We patch the
 # command-line we pass to the installer so that it won't attempt to
@@ -75,60 +93,67 @@ ADD cargo-config.toml /home/rust/.cargo/config
 ADD git-credential-ghtoken /usr/local/bin
 RUN git config --global credential.https://github.com.helper ghtoken
 
+
 # Build a static library version of OpenSSL using musl-libc.  This is needed by
 # the popular Rust `hyper` crate.
 #
-# We point /usr/local/musl/include/linux at some Linux kernel headers (not
+# We point ${MUSL_INCLUDE}/linux at some Linux kernel headers (not
 # necessarily the right ones) in an effort to compile OpenSSL 1.1's "engine"
 # component. It's possible that this will cause bizarre and terrible things to
 # happen. There may be "sanitized" header
 RUN echo "Building OpenSSL" && \
     ls /usr/include/linux && \
-    sudo mkdir -p /usr/local/musl/include && \
-    sudo ln -s /usr/include/linux /usr/local/musl/include/linux && \
-    sudo ln -s /usr/include/x86_64-linux-gnu/asm /usr/local/musl/include/asm && \
-    sudo ln -s /usr/include/asm-generic /usr/local/musl/include/asm-generic && \
+    sudo mkdir -p ${MUSL_INCLUDE} && \
+    sudo ln -s /usr/include/linux ${MUSL_INCLUDE}/linux && \
+    sudo ln -s /usr/include/x86_64-linux-gnu/asm ${MUSL_INCLUDE}/asm && \
+    sudo ln -s /usr/include/asm-generic ${MUSL_INCLUDE}/asm-generic && \
     cd /tmp && \
     curl -LO "https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz" && \
     tar xvzf "openssl-$OPENSSL_VERSION.tar.gz" && cd "openssl-$OPENSSL_VERSION" && \
-    env CC=musl-gcc ./Configure no-shared no-zlib -fPIC --prefix=/usr/local/musl -DOPENSSL_NO_SECURE_MEMORY linux-x86_64 && \
-    env C_INCLUDE_PATH=/usr/local/musl/include/ make depend && \
-    env C_INCLUDE_PATH=/usr/local/musl/include/ make && \
+    env CC=${MUSL_GCC} ./Configure no-shared no-zlib -fPIC --prefix=${MUSL_PREFIX} -DOPENSSL_NO_SECURE_MEMORY linux-x86_64 && \
+    env C_INCLUDE_PATH=${MUSL_INCLUDE}/ make depend && \
+    env C_INCLUDE_PATH=${MUSL_INCLUDE}/ make && \
     sudo make install && \
-    sudo rm /usr/local/musl/include/linux /usr/local/musl/include/asm /usr/local/musl/include/asm-generic && \
-    rm -r /tmp/*
+    echo "done"
+    #sudo rm ${MUSL_INCLUDE}/linux ${MUSL_INCLUDE}/asm ${MUSL_INCLUDE}/asm-generic && \
+    #rm -r /tmp/*
 
 RUN echo "Building zlib" && \
     cd /tmp && \
     ZLIB_VERSION=1.2.11 && \
     curl -LO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
     tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
-    CC=musl-gcc ./configure --static --prefix=/usr/local/musl && \
+    CC=${MUSL_GCC} ./configure --static --prefix=${MUSL_PREFIX} && \
     make && sudo make install && \
-    rm -r /tmp/*
+    echo "done"
+    #rm -r /tmp/*
 
-RUN echo "Building libpq" && \
-    cd /tmp && \
-    POSTGRESQL_VERSION=11.2 && \
-    curl -LO "https://ftp.postgresql.org/pub/source/v$POSTGRESQL_VERSION/postgresql-$POSTGRESQL_VERSION.tar.gz" && \
-    tar xzf "postgresql-$POSTGRESQL_VERSION.tar.gz" && cd "postgresql-$POSTGRESQL_VERSION" && \
-    CC=musl-gcc CPPFLAGS=-I/usr/local/musl/include LDFLAGS=-L/usr/local/musl/lib ./configure --with-openssl --without-readline --prefix=/usr/local/musl && \
-    cd src/interfaces/libpq && make all-static-lib && sudo make install-lib-static && \
-    cd ../../bin/pg_config && make && sudo make install && \
-    rm -r /tmp/*
+#RUN echo "Building libpq" && \
+#    cd /tmp && \
+#    POSTGRESQL_VERSION=11.2 && \
+#    curl -LO "https://ftp.postgresql.org/pub/source/v$POSTGRESQL_VERSION/postgresql-$POSTGRESQL_VERSION.tar.gz" && \
+#    tar xzf "postgresql-$POSTGRESQL_VERSION.tar.gz" && cd "postgresql-$POSTGRESQL_VERSION" && \
+#    CC=${MUSL_GCC} CPPFLAGS=-I${MUSL_INCLUDE} LDFLAGS=-L${MUSL_LIB} ./configure --with-openssl --without-readline --prefix=${MUSL_PREFIX} && \
+#    cd src/interfaces/libpq && make all-static-lib && sudo make install-lib-static && \
+#    cd ../../bin/pg_config && make && sudo make install && \
+#    echo "done"
+#    #rm -r /tmp/*
 
-ENV OPENSSL_DIR=/usr/local/musl/ \
-    OPENSSL_INCLUDE_DIR=/usr/local/musl/include/ \
-    DEP_OPENSSL_INCLUDE=/usr/local/musl/include/ \
-    OPENSSL_LIB_DIR=/usr/local/musl/lib/ \
+ENV OPENSSL_DIR=${MUSL_PREFIX}/ \ 
+    RUSTFLAGS="-C target-feature=+crt-static"\
+    OPENSSL_INCLUDE_DIR=${MUSL_INCLUDE}/ \
+    DEP_OPENSSL_INCLUDE=${MUSL_INCLUDE}/ \
+    OPENSSL_LIB_DIR=${MUSL_LIB}/ \
     OPENSSL_STATIC=1 \
     PQ_LIB_STATIC_X86_64_UNKNOWN_LINUX_MUSL=1 \
     PG_CONFIG_X86_64_UNKNOWN_LINUX_GNU=/usr/bin/pg_config \
     PKG_CONFIG_ALLOW_CROSS=true \
     PKG_CONFIG_ALL_STATIC=true \
     LIBZ_SYS_STATIC=1 \
-    TARGET=musl
+    TARGET=${MUSL_TARGET}
 
+USER rust
+ENV CC=${MUSL_GCC}
 # (Please feel free to submit pull requests for musl-libc builds of other C
 # libraries needed by the most popular and common Rust crates, to avoid
 # everybody needing to build them manually.)
@@ -138,6 +163,25 @@ ENV OPENSSL_DIR=/usr/local/musl/ \
 RUN cargo install -f cargo-audit && \
     rm -rf /home/rust/.cargo/registry/
 
+WORKDIR /tmp
+USER root
+ADD cargo_build.sh cargo_build.sh
+ADD custom_link.sh custom_link.sh
+RUN chmod +x cargo_build.sh
+RUN chmod +x custom_link.sh
+RUN chown rust cargo_build.sh
+RUN chown rust custom_link.sh
+RUN pwd && ls -l 
+USER rust
+
 # Expect our source code to live in /home/rust/src.  We'll run the build as
 # user `rust`, which will be uid 1000, gid 1000 outside the container.
 WORKDIR /home/rust/src
+
+USER root
+RUN mv /usr/local/musl/bin/x86_64-linux-musl-gcc /usr/local/musl/bin/x86_64-linux-musl-gcc-real
+ADD gcc_wrapper /usr/local/musl/bin/x86_64-linux-musl-gcc
+RUN chmod +x /usr/local/musl/bin/x86_64-linux-musl-gcc 
+RUN chown rust /usr/local/musl/bin/x86_64-linux-musl-gcc 
+#RUN cp /usr/local/musl/libexec/gcc/x86_64-linux-musl/8.3.0/liblto_plugin.so.0.0.0  /usr/local/musl/libexec/gcc/x86_64-linux-musl/8.3.0/liblto_plugin.so
+USER rust
