@@ -1,7 +1,5 @@
 #!/bin/bash
-
 args=()
-
 for arg in "$@"; do
     args+=("$arg")
 done

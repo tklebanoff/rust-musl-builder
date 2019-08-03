@@ -1,8 +1,8 @@
 #!/bin/bash
+export LTO_PLUGIN="/usr/local/musl/libexec/gcc/x86_64-linux-musl/8.3.0/liblto_plugin.so.0.0.0"
 export GCC_ROOT="$TOOLCHAIN_ROOT/lib/gcc/x86_64-linux-musl/8.3.0"
 
 args=()
-args+=("-v" "-Wl,-plugin=${LTO_PLUGIN}")
 for arg in "$@"; do
     if [[ $arg = *"Bdynamic"* ]]; then
         args+=() # we do not want this arg
@@ -14,10 +14,11 @@ for arg in "$@"; do
         args+=("$arg")
     fi
 done
+args+=("-use-linker-plugin" "-Wl,-plugin,${LTO_PLUGIN}")
 
 echo "CUSTOM_LINK_WRAPPER, RUNNING WITH ARGS: ${args[@]}"
 
-set +x 
-${CC} "${args[@]}"
-set -x 
+echo "fuck it im calling strace"
+sudo strace -o strace_out ${CC} "${args[@]}" 
+cat strace_out
 

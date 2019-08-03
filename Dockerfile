@@ -183,5 +183,41 @@ RUN mv /usr/local/musl/bin/x86_64-linux-musl-gcc /usr/local/musl/bin/x86_64-linu
 ADD gcc_wrapper /usr/local/musl/bin/x86_64-linux-musl-gcc
 RUN chmod +x /usr/local/musl/bin/x86_64-linux-musl-gcc 
 RUN chown rust /usr/local/musl/bin/x86_64-linux-musl-gcc 
-#RUN cp /usr/local/musl/libexec/gcc/x86_64-linux-musl/8.3.0/liblto_plugin.so.0.0.0  /usr/local/musl/libexec/gcc/x86_64-linux-musl/8.3.0/liblto_plugin.so
 USER rust
+
+USER root
+RUN mv /usr/local/musl/bin/x86_64-linux-musl-ar /usr/local/musl/bin/x86_64-linux-musl-ar-real
+ADD ar_wrapper /usr/local/musl/bin/x86_64-linux-musl-ar
+RUN chmod +x /usr/local/musl/bin/x86_64-linux-musl-ar 
+RUN chown rust /usr/local/musl/bin/x86_64-linux-musl-ar 
+USER rust
+
+USER root
+RUN mv /usr/local/musl/bin/x86_64-linux-musl-ld /usr/local/musl/bin/x86_64-linux-musl-ld-real
+ADD ld_wrapper /usr/local/musl/bin/x86_64-linux-musl-ld
+RUN chmod +x /usr/local/musl/bin/x86_64-linux-musl-ld 
+RUN chown rust /usr/local/musl/bin/x86_64-linux-musl-ld 
+USER rust
+
+USER root
+RUN mv /usr/local/musl/bin/x86_64-linux-musl-g++ /usr/local/musl/bin/x86_64-linux-musl-g++-real
+ADD g++_wrapper /usr/local/musl/bin/x86_64-linux-musl-g++
+RUN chmod +x /usr/local/musl/bin/x86_64-linux-musl-g++ 
+RUN chown rust /usr/local/musl/bin/x86_64-linux-musl-g++ 
+USER rust
+
+USER root
+RUN ln /usr/local/musl/bin/x86_64-linux-musl-g++ /usr/local/musl/bin/g++
+RUN ln /usr/local/musl/bin/x86_64-linux-musl-ar /usr/local/musl/bin/ar
+RUN ln /usr/local/musl/bin/x86_64-linux-musl-gcc /usr/local/musl/bin/gcc
+RUN ln /usr/local/musl/bin/x86_64-linux-musl-ld /usr/local/musl/bin/ld
+RUN ln /usr/local/musl/bin/x86_64-linux-musl-g++ /usr/local/musl/bin/musl-g++
+USER rust
+
+USER root
+RUN apt-get update && \
+    apt-get install -y \
+        strace
+
+USER rust
+ENTRYPOINT [ "/tmp/cargo_build.sh" ]

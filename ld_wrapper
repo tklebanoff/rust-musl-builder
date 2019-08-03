@@ -1,0 +1,12 @@
+#!/bin/bash
+
+args=()
+
+for arg in "$@"; do
+    args+=("$arg")
+done
+
+echo "LD_WRAPPER, RUNNING WITH ARGS: ${args[@]}"
+
+/usr/local/musl/bin/x86_64-linux-musl-ld-real "${args[@]}"
+

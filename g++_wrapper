@@ -1,0 +1,11 @@
+#!/bin/bash
+
+args=()
+for arg in "$@"; do
+    args+=("$arg")
+done
+
+echo "GPP_WRAPPER, RUNNING WITH ARGS: ${args[@]}"
+
+/usr/local/musl/bin/x86_64-linux-musl-g++-real "${args[@]}"
+
