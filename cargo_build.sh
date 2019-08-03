@@ -15,9 +15,6 @@ export PKG_CONFIG_ALLOW_CROSS=1
 export RUSTFLAGS="-C link-arg=-v -C linker=/tmp/custom_link.sh "
 export PATH=/usr/local/musl/bin:$PATH
 
-#export COLLECT_GCC=/usr/local/musl/bin/x86_64-linux-musl-gcc
-#export COLLECT_LTO_WRAPPER=${LTO_WRAPPER}
-
 export TARGET_AR=/usr/local/musl/bin/x86_64-linux-musl-ar
 export TARGET_CC=/usr/local/musl/bin/x86_64-linux-musl-gcc
 export TARGET_CXX=/usr/local/musl/bin/x86_64-linux-musl-g++
