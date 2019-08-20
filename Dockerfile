@@ -2,7 +2,8 @@
 FROM ubuntu:18.04
 
 # The Rust toolchain to use when building our image.  Set by `hooks/build`.
-ARG TOOLCHAIN=stable
+#ARG TOOLCHAIN=stable
+ARG TOOLCHAIN=nightly
 
 # The OpenSSL version to use. We parameterize this because many Rust
 # projects will fail to build with 1.1.
@@ -35,6 +36,7 @@ RUN apt-get update && \
         linux-libc-dev \
         pkgconf \
         sudo \
+        strace \
         xutils-dev \
         gcc-multilib-arm-linux-gnueabihf \
         && \
@@ -214,10 +216,4 @@ RUN ln /usr/local/musl/bin/x86_64-linux-musl-ld /usr/local/musl/bin/ld
 RUN ln /usr/local/musl/bin/x86_64-linux-musl-g++ /usr/local/musl/bin/musl-g++
 USER rust
 
-USER root
-RUN apt-get update && \
-    apt-get install -y \
-        strace
-
-USER rust
 ENTRYPOINT [ "/tmp/cargo_build.sh" ]

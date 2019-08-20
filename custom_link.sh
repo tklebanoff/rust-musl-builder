@@ -21,4 +21,6 @@ echo "CUSTOM_LINK_WRAPPER, RUNNING WITH ARGS: ${args[@]}"
 echo "fuck it im calling strace"
 sudo strace -o strace_out ${CC} "${args[@]}" 
 cat strace_out
-echo "somewhy calling strace made the dang thing work"
+echo "wow...it finally worked and i have no idea why... calling strace on the linker command did the trick"
+echo "perhaps the invoking program was mis-handling the output, or invoking CC in an irregular way"
+echo "maybe it is best just not to question it..."
