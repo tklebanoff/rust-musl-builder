@@ -2,7 +2,6 @@
 FROM ubuntu:18.04
 
 # The Rust toolchain to use when building our image.  Set by `hooks/build`.
-#ARG TOOLCHAIN=stable
 ARG TOOLCHAIN=nightly
 
 # The OpenSSL version to use. We parameterize this because many Rust
