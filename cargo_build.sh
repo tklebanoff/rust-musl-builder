@@ -22,4 +22,4 @@ export TARGET_LD=/usr/local/musl/bin/x86_64-linux-musl-ld
 export TARGET_NM=/usr/local/musl/bin/x86_64-linux-musl-nm
 
 cargo build -vv --target=x86_64-unknown-linux-musl 
-cat strace_out
+#cat strace_out
